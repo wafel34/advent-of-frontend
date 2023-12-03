@@ -12,32 +12,22 @@ export function znajdzWorek(lokalizacje: Lokalizacja[], mapa: MapaCzasoprzestrze
 		return null;
 	}
 
-	let najwyzszaLokalizacja: {wartosc?: number, lokalizacja: Lokalizacja | null} = {
-		lokalizacja: null
-	};
+	let najwyzszaWartosc: number | null = null;
+	let najwyzszaLokalizacja: Lokalizacja | null = null;
 
 	for (const lokalizacja of lokalizacje) {
-		const wartoscMapy = mapa(lokalizacja.x, lokalizacja.y, lokalizacja.z, lokalizacja.czas);
+		const {x, y, z, czas} = lokalizacja
+		const wartoscMapy = mapa(x, y, z, czas);
 
-		if (isNaN(wartoscMapy)) {
+		if (!isFinite(wartoscMapy)) {
 			return null;
 		}
 
-		if (najwyzszaLokalizacja.wartosc === undefined) {
-			najwyzszaLokalizacja = {
-				wartosc: wartoscMapy,
-				lokalizacja: lokalizacja
-			}
-			break;
-		}
-
-		if (wartoscMapy > najwyzszaLokalizacja.wartosc) {
-			najwyzszaLokalizacja = {
-				wartosc: wartoscMapy,
-				lokalizacja: lokalizacja
-			}
+		if (najwyzszaWartosc === null || wartoscMapy > najwyzszaWartosc) {
+			najwyzszaWartosc = wartoscMapy;
+			najwyzszaLokalizacja = lokalizacja;
 		}
 	}
 
-	return najwyzszaLokalizacja.lokalizacja
+	return najwyzszaLokalizacja;
 }
