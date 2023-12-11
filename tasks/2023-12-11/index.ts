@@ -1,70 +1,75 @@
-import { version } from "ts-jest/dist/transformers/hoist-jest";
-
 export interface WeightedGraph {
 	[key: string]: { [key: string]: number };
 }
 
-
+type DistanceTable = {
+	[key: string]: {
+		distance: number;
+		previousIndex: string | null
+	}
+}
 export function findShortestPath(graph: WeightedGraph, startNode: string, endNode: string): string[] | null {
 
-	//define list of unvisited nodes
+	// define lists of unvisited and visited nodes
 	const unvisitedNodes = Object.keys(graph);
 	const visitedNodes: string[] = [];
 
-	// define length table
-	const lengthTable: {
-		[key: string]: {
-			distance: number;
-			previousIndex: string | null
-		}
-	} = {}
-	Object.keys(graph).forEach(location => {
-		lengthTable[location] = {
+	// define initial distance table
+	const distanceTable: DistanceTable = {};
+	for (const location of unvisitedNodes) {
+		distanceTable[location] = {
 			distance: Infinity,
 			previousIndex: null
 		}
-	});
-	lengthTable[startNode].distance = 0;
+	}
+	distanceTable[startNode].distance = 0;
 
 	while (unvisitedNodes.length > 0) {
-		// visit unvisited vertex with the smalles value
-		let closestVertex = '';
+		// find unvisited vertex with the smallest distance
+		const currentVertex = findClosestVertex(unvisitedNodes, distanceTable);
 
-		unvisitedNodes.forEach(vertex => {
-			if (!closestVertex || lengthTable[vertex].distance < lengthTable[closestVertex].distance) {
-				closestVertex = vertex
-			}
-		});
-
-		// get list of neigborus
-		const neighbors = graph[closestVertex];
+		// get list of its neigborus
+		const neighbors = graph[currentVertex];
 
 		Object.entries(neighbors)
-			.filter(([neigbour]) => !visitedNodes.includes(neigbour)) // filter visited
+			.filter(([neighbor]) => !visitedNodes.includes(neighbor)) // filter visited
 			.forEach(([neighbor, distance]) => {
-				if (!lengthTable[neighbor]) {
+				if (!distanceTable[neighbor]) {
 					throw new Error('Invalid or non-existent route');
 				}
 				// calulate distanace between current vertex and neighbor
-				const newDistance = lengthTable[closestVertex].distance + distance;
-				if (newDistance < lengthTable[neighbor].distance) {
+				const newDistance = distanceTable[currentVertex].distance + distance;
+				if (newDistance < distanceTable[neighbor].distance) {
 					// if calulated distance is lower than current known distance, update length table
-					lengthTable[neighbor].distance = newDistance;
+					distanceTable[neighbor].distance = newDistance;
 					// update it's previous indexes
-					lengthTable[neighbor].previousIndex = closestVertex;
+					distanceTable[neighbor].previousIndex = currentVertex;
 				}
 			});
 
 		// add current vertex to list of visited verticies
 		visitedNodes.push(unvisitedNodes.shift()!);
 	}
-	const findPreviousNode = (endNode: string, stack: string[] = []): string[] | null => {
-		const previousNode = lengthTable[endNode].previousIndex;
-		if (!previousNode) {
-			return stack.length > 0 ? [endNode, ...stack] : null;
-		}
-		return findPreviousNode(previousNode, [endNode, ...stack ]);
-	}
 
-	return findPreviousNode(endNode);
+	return generateShortestsPath(endNode, distanceTable);
+}
+
+const generateShortestsPath = (endNode: string, distanceTable: DistanceTable, stack: string[] = []): string[] | null => {
+	const previousNode = distanceTable[endNode].previousIndex;
+	if (!previousNode) {
+		return stack.length > 0 ? [endNode, ...stack] : null;
+	}
+	return generateShortestsPath(previousNode, distanceTable,[endNode, ...stack ]);
+}
+
+const findClosestVertex = (nodes: string[], distanceTable: DistanceTable): string => {
+	let closestVertex = '';
+
+	nodes.forEach(vertex => {
+		if (!closestVertex || distanceTable[vertex].distance < distanceTable[closestVertex].distance) {
+			closestVertex = vertex;
+		}
+	});
+
+	return closestVertex;
 }
