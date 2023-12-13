@@ -1,28 +1,41 @@
-const TEMPLATE_INTERPOLATION_REGEX = /{{\s?\w*\s?}}/g;
+const TEMPLATE_INTERPOLATION_REGEX = /{{\s?\w*\s?}}/g; // {{ some_key }}
+const INTERPOLATION_CHARACTERS_REGEX = /(\s|{|})/g; // {{ }} and spaces
+const CAESAR_REGEX = /c\d\d?/; // c13, c14 etc.
 
-const decodeStrategies: Record<string, (val: string) => string> = {
-	b64: val => atob(val),
-	uri: val => decodeURIComponent(val),
-	c13: val => caesarShift(val, 13),
-	default: val => ''
-} as const
+type DecodeStrategy = (value: string) => string;
+
+const decodeFactory = (decodeType: string): DecodeStrategy => {
+	const decodeStrategies: Record<string, DecodeStrategy> = {
+		b64: value => atob(value),
+		uri: value => decodeURIComponent(value),
+		default: () => ''
+	};
+
+	const isCaesar = CAESAR_REGEX.test(decodeType);
+	if (isCaesar) {
+		const shift = Number(decodeType.replace('c', ''));
+		return (value) => caesarShift(value, shift);
+	}
+	return decodeStrategies[decodeType] || decodeStrategies.default;
+}
 
 export function decodeMessage(template: string, values: Record<string, string>): string {
 
-	return template.replace(TEMPLATE_INTERPOLATION_REGEX, val => {
-		const templateKey = val.replace(/(\s|{|})/g, '');
-		const templateValue = values[templateKey];
+	return template.replace(TEMPLATE_INTERPOLATION_REGEX, templateEntry => {
+		const templateKey = templateEntry.replace(INTERPOLATION_CHARACTERS_REGEX, '');
+		const valueToDecode = values[templateKey];
 
-		if (!templateValue) {
+		if (!valueToDecode) {
 			return '';
 		}
-		const [decodeType, decodeValue] = templateValue.split(':');
+		const [decodeType, decodeValue] = valueToDecode.split(':');
 
-		const decodeStrategy = decodeStrategies[decodeType] || decodeStrategies['default'];
+		const decodeStrategy = decodeFactory(decodeType);
 
 		return decodeStrategy(decodeValue);
-	})
+	});
 }
+
 const caesarShift = function (str: string, amount: number): string {
 	let resultArray: string[] = [];
 	str.split('').forEach((_, i) => {
